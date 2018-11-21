@@ -1,0 +1,15 @@
+---
+title: "HW6"
+author: "Eric Morris"
+date: "11/21/2018"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+```
+
+## Problem 1
+
