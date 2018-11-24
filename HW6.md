@@ -20,22 +20,6 @@ wp_homicide_data =
          victim_age = as.numeric(victim_age))
 ```
 
-    ## Parsed with column specification:
-    ## cols(
-    ##   uid = col_character(),
-    ##   reported_date = col_integer(),
-    ##   victim_last = col_character(),
-    ##   victim_first = col_character(),
-    ##   victim_race = col_character(),
-    ##   victim_age = col_character(),
-    ##   victim_sex = col_character(),
-    ##   city = col_character(),
-    ##   state = col_character(),
-    ##   lat = col_double(),
-    ##   lon = col_double(),
-    ##   disposition = col_character()
-    ## )
-
     ## Warning in evalq(as.numeric(victim_age), <environment>): NAs introduced by
     ## coercion
 
@@ -84,7 +68,7 @@ wp_homicide_data %>%
          city_state = fct_reorder(city_state, estimate)) %>%
   select(city_state, OR, OR_Lower_Bound, OR_Upper_Bound) %>% 
   ggplot(aes(x = city_state, y = OR))+
-  geom_point() + 
+  geom_point(color = "firebrick") + 
   geom_errorbar(aes(ymin = OR_Lower_Bound, ymax = OR_Upper_Bound)) +
   coord_flip() + 
   labs(title = "Adjusted Odds Ratios for Solving Homicides Comparing \n Non-White Victims to White Victims by City", 
@@ -97,6 +81,12 @@ wp_homicide_data %>%
 ```
 
 <img src="HW6_files/figure-markdown_github/All Cities GLM and plot-1.png" style="display: block; margin: auto;" />
+
+In the above plot, we see that Tampa, Florida, followed by Birmingham, AL and Durham, NC have the 'highest' adjusted odds ratio, all of which are greater than the null value of 1. This indicates that the odds of a non-white homicide victim's case being solved are greater than a white homicide victim's case being solved. However, they all have wide confidence intervals which include the null value of 1, indicating the relationship isn't significant.
+
+Addtionally, we see that the 'bottom' five adjusted odds ratios on the plot are Boston, Omaha, Oakland, Pittsburgh, and Cincinnati (in ascending order). This indicates that these cities, with ORs &lt;1, are the least likely to solve a non-white victim's homicide case compared to a white victim's case. The confidence intervals all do not include the null value one, indicating a significant relationship.
+
+Overall, we see that cities with a large amount of homicides (Baltimore, Chicago) have smaller confidence intervals, while smaller cities with fewwer homicides tend to have large confidence intervals. This is expected, as with more data we can have less variability, our standard errors tend to be smaller.
 
 Problem 2
 ---------

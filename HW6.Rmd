@@ -22,7 +22,7 @@ set.seed(1)
 
 ## Problem 1
 
-```{r Data import and Tidying}
+```{r Data import and Tidying, message = FALSE}
 #Importing the data from GH URL like HW5 and mutating/tidying as indicated in the problem 
 
 wp_homicide_data = 
