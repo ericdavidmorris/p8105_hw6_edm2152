@@ -192,10 +192,42 @@ bw %>%
 
 ```
 
-I'm not sure what my scatterplot of the predicted values vs. residuals tells me. 
+I'm not sure what my scatterplot of the predicted values vs. residuals tells me and I'm pretty sure my model stinks. 
 
-Compare your model to two others:
-One using length at birth and gestational age as predictors (main effects only)
-One using head circumference, length, sex, and all interactions (including the three-way interaction) between these
+```{r Model Comparison and CV}
 
-Make this comparison in terms of the cross-validated prediction error; use crossv_mc and functions in purrr as appropriate.
+cv_bwt = crossv_mc(bw, 100)
+
+cv_bwt = cv_bwt %>% 
+  mutate(my_model = map(train, ~lm(bwt ~ babysex + frace + mrace + delwt + gaweeks + wtgain + smoken, data = .x)),
+         jeff_model_main = map(train, ~lm(bwt ~ blength + gaweeks, data = .x)),
+         jeff_model_int = map(train, ~lm(bwt ~ bhead + blength + babysex + bhead*blength + blength*babysex + 
+                                           bhead*babysex + bhead*blength*babysex, data = .x))) %>% 
+  mutate(rmse_my = map2_dbl(my_model, test, ~rmse(model = .x, data = .y)),
+         rmse_jeff_main = map2_dbl(jeff_model_main, test, ~rmse(model = .x, data = .y)),
+         rmse_jeff_int = map2_dbl(jeff_model_int, test, ~rmse(model = .x, data = .y)))
+
+cv_bwt %>% 
+  select(starts_with("rmse")) %>% 
+  gather(key = model, value = rmse) %>% 
+  mutate(model = str_replace(model, "rmse_", ""),
+         model = fct_inorder(model)) %>% 
+  ggplot(aes(x = model, y = rmse)) + 
+  geom_violin() +
+  theme_bw() + 
+  labs(title = "Violin plots of select model's RMSE",
+       x = "Model Title",
+       y = "RMSE")
+
+# Mean RMSE's in a clean table
+
+cv_bwt %>% 
+  select(starts_with("rmse")) %>% 
+  gather(key = model, value = rmse) %>% 
+  mutate(model = str_replace(model, "rmse_", ""),
+         model = fct_inorder(model)) %>% 
+  group_by(model) %>% 
+  summarize(mean_rmse = mean(rmse)) %>% 
+  knitr::kable()
+```
+
