@@ -119,7 +119,43 @@ bw = read_csv("data/birthweight.csv") %>%
 
 Propose a regression model for birthweight. This model may be based on a hypothesized structure for the factors that underly birthweight, on a data-driven model-building process, or a combination of the two. Describe your modeling process and show a plot of model residuals against fitted values – use add_predictions and add_residuals in making this plot.
 
-```{r Regression Model}
+```{r Exploratory Plots for Model}
+#Exploratory plots to see distribution of birthweight
+
+# No x to plot against, tried this scatter but not much info: bw %>% ggplot(aes(x = 1:nrow(bw), y = bwt)) + geom_point() + theme_bw()
+
+bw %>% 
+  ggplot(aes(x = bwt)) +
+  geom_histogram(bins = 50) + 
+  theme_bw()
+
+bw %>% 
+  ggplot(aes(y = bwt)) + 
+  geom_boxplot() +
+  theme_bw()
+
+# Birthweight is probably fairly normally distributed, with a few outliers, and should be treated as a continous variable in an analysis 
+
+bw %>% 
+  ggplot(aes(x = babysex, y = bwt)) + 
+  geom_boxplot() +
+  theme_bw()
+
+bw %>% 
+  ggplot(aes(x = frace, y = bwt)) + 
+  geom_boxplot() +
+  theme_bw()
+
+bw %>% 
+  ggplot(aes(x = mrace, y = bwt)) + 
+  geom_boxplot() +
+  theme_bw()
+
+# The boxplots for categorical variables tells us a little bit of info, mostly that birthweight varies across all the categories 
+
+# For checking the relationships with continuous variables, I'll run a function to determine the correlation coefficients 
+
+
 
 ```
 
