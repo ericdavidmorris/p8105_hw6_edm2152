@@ -167,7 +167,14 @@ cor(bw$bwt, bw$ppbmi)
 cor(bw$bwt, bw$ppwt)
 cor(bw$bwt, bw$wtgain)
 
-# From above we see that bhead, blength, delwet, gaweeks and wtgain all have correlation values >0.2, which may indicate a positive linear relationship with birthweight. While this might not mean much, it'll help me include it in a model 
+# From above we see that bhead, blength, delwt, gaweeks and wtgain all have correlation values >0.2, which may indicate a positive linear relationship with birthweight. While this might not mean much, it'll help me include it in a model 
+
+# Scatter plots for cts variables, viewing correlation 
+# bw %>% 
+#  ggplot(aes(x= smoken, y = bwt)) + 
+#  geom_point() +
+#  geom_smooth() + 
+#  theme_bw()
 
 ```
 Propose a regression model for birthweight. This model may be based on a hypothesized structure for the factors that underly birthweight, on a data-driven model-building process, or a combination of the two. Describe your modeling process and show a plot of model residuals against fitted values – use add_predictions and add_residuals in making this plot.
