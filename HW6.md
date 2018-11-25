@@ -121,4 +121,202 @@ bw = read_csv("data/birthweight.csv") %>%
 # sum(is.na(bw$bwt))
 ```
 
+``` r
+#Exploratory plots to see distribution of birthweight
+
+# No x to plot against, tried this scatter but not much info: bw %>% ggplot(aes(x = 1:nrow(bw), y = bwt)) + geom_point() + theme_bw()
+
+bw %>% 
+  ggplot(aes(x = bwt)) +
+  geom_histogram(bins = 50) + 
+  theme_bw()
+```
+
+<img src="HW6_files/figure-markdown_github/Exploratory Plots/Analysis for Model-1.png" style="display: block; margin: auto;" />
+
+``` r
+bw %>% 
+  ggplot(aes(y = bwt)) + 
+  geom_boxplot() +
+  theme_bw()
+```
+
+<img src="HW6_files/figure-markdown_github/Exploratory Plots/Analysis for Model-2.png" style="display: block; margin: auto;" />
+
+``` r
+# Birthweight is probably fairly normally distributed, with a few outliers, and should be treated as a continous variable in an analysis 
+
+bw %>% 
+  ggplot(aes(x = babysex, y = bwt)) + 
+  geom_boxplot() +
+  theme_bw()
+```
+
+<img src="HW6_files/figure-markdown_github/Exploratory Plots/Analysis for Model-3.png" style="display: block; margin: auto;" />
+
+``` r
+bw %>% 
+  ggplot(aes(x = frace, y = bwt)) + 
+  geom_boxplot() +
+  theme_bw()
+```
+
+<img src="HW6_files/figure-markdown_github/Exploratory Plots/Analysis for Model-4.png" style="display: block; margin: auto;" />
+
+``` r
+bw %>% 
+  ggplot(aes(x = mrace, y = bwt)) + 
+  geom_boxplot() +
+  theme_bw()
+```
+
+<img src="HW6_files/figure-markdown_github/Exploratory Plots/Analysis for Model-5.png" style="display: block; margin: auto;" />
+
+``` r
+# The boxplots for categorical variables tells us a little bit of info, mostly that birthweight varies across all the categories 
+
+# For checking the relationships with continuous variables, I'll run a function to determine the correlation coefficients 
+
+# Function for this??
+
+cor(bw$bwt, bw$bhead)
+```
+
+    ## [1] 0.7471068
+
+``` r
+cor(bw$bwt, bw$blength)
+```
+
+    ## [1] 0.7434508
+
+``` r
+cor(bw$bwt, bw$delwt)
+```
+
+    ## [1] 0.2878893
+
+``` r
+cor(bw$bwt, bw$fincome)
+```
+
+    ## [1] 0.1545715
+
+``` r
+cor(bw$bwt, bw$gaweeks)
+```
+
+    ## [1] 0.4121833
+
+``` r
+cor(bw$bwt, bw$menarche)
+```
+
+    ## [1] -0.02442466
+
+``` r
+cor(bw$bwt, bw$mheight)
+```
+
+    ## [1] 0.1921632
+
+``` r
+cor(bw$bwt, bw$momage)
+```
+
+    ## [1] 0.1357734
+
+``` r
+cor(bw$bwt, bw$ppbmi)
+```
+
+    ## [1] 0.09394573
+
+``` r
+cor(bw$bwt, bw$ppwt)
+```
+
+    ## [1] 0.182892
+
+``` r
+cor(bw$bwt, bw$wtgain)
+```
+
+    ## [1] 0.2472526
+
+``` r
+# From above we see that bhead, blength, delwet, gaweeks and wtgain all have correlation values >0.2, which may indicate a positive linear relationship with birthweight. While this might not mean much, it'll help me include it in a model 
+```
+
 Propose a regression model for birthweight. This model may be based on a hypothesized structure for the factors that underly birthweight, on a data-driven model-building process, or a combination of the two. Describe your modeling process and show a plot of model residuals against fitted values – use add\_predictions and add\_residuals in making this plot.
+
+``` r
+# Using my above 'analysis' and some hypothesized factors that I think influence birthweight, my proposed model is below. I'm afraid of adding too many predictors, and wary of add bhead and blength variables, as these are measurements taken post-birth and cannot be changed/influence. Additionally I didn't add any interaction terms to keep it a simple linear model with multiple predictors. I chose to include both mother and father's race, mother's weight at delivery, gestational age, weight gained during pregnancy and the smoking variable. 
+
+eric_model = 
+  bw %>% 
+  lm(bwt ~ babysex + frace + mrace + delwt + gaweeks + wtgain + smoken, data = .)
+
+bw %>% 
+  add_predictions(eric_model) %>% 
+  add_residuals(eric_model) %>% 
+  ggplot(aes(x = pred, y = resid)) + 
+  geom_point() + 
+  geom_smooth(se = FALSE) +
+  theme_bw() + 
+  labs(title = "Plotting predicted values vs. residuals",
+       x = "Predicted Value",
+       y = "Residual")
+```
+
+    ## `geom_smooth()` using method = 'gam' and formula 'y ~ s(x, bs = "cs")'
+
+<img src="HW6_files/figure-markdown_github/My Proposed Model-1.png" style="display: block; margin: auto;" />
+
+I'm not sure what my scatterplot of the predicted values vs. residuals tells me and I'm pretty sure my model stinks.
+
+``` r
+cv_bwt = crossv_mc(bw, 100)
+
+cv_bwt = cv_bwt %>% 
+  mutate(my_model = map(train, ~lm(bwt ~ babysex + frace + mrace + delwt + gaweeks + wtgain + smoken, data = .x)),
+         jeff_model_main = map(train, ~lm(bwt ~ blength + gaweeks, data = .x)),
+         jeff_model_int = map(train, ~lm(bwt ~ bhead + blength + babysex + bhead*blength + blength*babysex + 
+                                           bhead*babysex + bhead*blength*babysex, data = .x))) %>% 
+  mutate(rmse_my = map2_dbl(my_model, test, ~rmse(model = .x, data = .y)),
+         rmse_jeff_main = map2_dbl(jeff_model_main, test, ~rmse(model = .x, data = .y)),
+         rmse_jeff_int = map2_dbl(jeff_model_int, test, ~rmse(model = .x, data = .y)))
+
+cv_bwt %>% 
+  select(starts_with("rmse")) %>% 
+  gather(key = model, value = rmse) %>% 
+  mutate(model = str_replace(model, "rmse_", ""),
+         model = fct_inorder(model)) %>% 
+  ggplot(aes(x = model, y = rmse)) + 
+  geom_violin() +
+  theme_bw() + 
+  labs(title = "Violin plots of select model's RMSE",
+       x = "Model Title",
+       y = "RMSE")
+```
+
+<img src="HW6_files/figure-markdown_github/Model Comparison and CV-1.png" style="display: block; margin: auto;" />
+
+``` r
+# Mean RMSE's in a clean table
+
+cv_bwt %>% 
+  select(starts_with("rmse")) %>% 
+  gather(key = model, value = rmse) %>% 
+  mutate(model = str_replace(model, "rmse_", ""),
+         model = fct_inorder(model)) %>% 
+  group_by(model) %>% 
+  summarize(mean_rmse = mean(rmse)) %>% 
+  knitr::kable()
+```
+
+| model      |  mean\_rmse|
+|:-----------|-----------:|
+| my         |    420.8317|
+| jeff\_main |    333.4554|
+| jeff\_int  |    290.1558|
