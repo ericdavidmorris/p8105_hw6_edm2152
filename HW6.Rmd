@@ -117,9 +117,7 @@ bw = read_csv("data/birthweight.csv") %>%
 # sum(is.na(bw$bwt))
 ```
 
-Propose a regression model for birthweight. This model may be based on a hypothesized structure for the factors that underly birthweight, on a data-driven model-building process, or a combination of the two. Describe your modeling process and show a plot of model residuals against fitted values – use add_predictions and add_residuals in making this plot.
-
-```{r Exploratory Plots for Model}
+```{r Exploratory Plots/Analysis for Model}
 #Exploratory plots to see distribution of birthweight
 
 # No x to plot against, tried this scatter but not much info: bw %>% ggplot(aes(x = 1:nrow(bw), y = bwt)) + geom_point() + theme_bw()
@@ -155,7 +153,49 @@ bw %>%
 
 # For checking the relationships with continuous variables, I'll run a function to determine the correlation coefficients 
 
+# Function for this??
 
+cor(bw$bwt, bw$bhead)
+cor(bw$bwt, bw$blength)
+cor(bw$bwt, bw$delwt)
+cor(bw$bwt, bw$fincome)
+cor(bw$bwt, bw$gaweeks)
+cor(bw$bwt, bw$menarche)
+cor(bw$bwt, bw$mheight)
+cor(bw$bwt, bw$momage)
+cor(bw$bwt, bw$ppbmi)
+cor(bw$bwt, bw$ppwt)
+cor(bw$bwt, bw$wtgain)
+
+# From above we see that bhead, blength, delwet, gaweeks and wtgain all have correlation values >0.2, which may indicate a positive linear relationship with birthweight. While this might not mean much, it'll help me include it in a model 
+
+```
+Propose a regression model for birthweight. This model may be based on a hypothesized structure for the factors that underly birthweight, on a data-driven model-building process, or a combination of the two. Describe your modeling process and show a plot of model residuals against fitted values – use add_predictions and add_residuals in making this plot.
+
+```{r My Proposed Model}
+# Using my above 'analysis' and some hypothesized factors that I think influence birthweight, my proposed model is below. I'm afraid of adding too many predictors, and wary of add bhead and blength variables, as these are measurements taken post-birth and cannot be changed/influence. Additionally I didn't add any interaction terms to keep it a simple linear model with multiple predictors. I chose to include both mother and father's race, mother's weight at delivery, gestational age, weight gained during pregnancy and the smoking variable. 
+
+eric_model = 
+  bw %>% 
+  lm(bwt ~ babysex + frace + mrace + delwt + gaweeks + wtgain + smoken, data = .)
+
+bw %>% 
+  add_predictions(eric_model) %>% 
+  add_residuals(eric_model) %>% 
+  ggplot(aes(x = pred, y = resid)) + 
+  geom_point() + 
+  geom_smooth(se = FALSE) +
+  theme_bw() + 
+  labs(title = "Plotting predicted values vs. residuals",
+       x = "Predicted Value",
+       y = "Residual")
 
 ```
 
+I'm not sure what my scatterplot of the predicted values vs. residuals tells me. 
+
+Compare your model to two others:
+One using length at birth and gestational age as predictors (main effects only)
+One using head circumference, length, sex, and all interactions (including the three-way interaction) between these
+
+Make this comparison in terms of the cross-validated prediction error; use crossv_mc and functions in purrr as appropriate.
