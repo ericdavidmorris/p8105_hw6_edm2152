@@ -81,6 +81,7 @@ wp_homicide_data %>%
   geom_point(color = "firebrick") + 
   geom_errorbar(aes(ymin = OR_Lower_Bound, ymax = OR_Upper_Bound)) +
   coord_flip() + 
+  geom_hline(yintercept = 1, linetype = "dashed", color = "red", alpha = 0.5) +
   labs(title = "Adjusted Odds Ratios for Solving Homicides Comparing \n Non-White Victims to White Victims by City", 
        y = "Adjusted Odds Ratio", 
        x = "City, State", 
@@ -98,24 +99,25 @@ Overall, we see that cities with a large amount of homicides (Baltimore, Chicago
 
 ## Problem 2
 
-Load and clean the data for regression analysis (i.e. convert numeric to factor where appropriate, check for missing data, etc.).
-
 ```{r Importing and Tidying birthweight data}
 
 bw = read_csv("data/birthweight.csv") %>% 
-  mutate(babysex = as.factor(babysex),
+  mutate(frace = ifelse(frace == "9", NA, frace),
+         babysex = as.factor(babysex),
          frace = as.factor(frace), 
          malform = as.factor(malform), 
          mrace = as.factor(mrace))
 
 # After importing the data, I checked which columns seemed appropriate to be converted to factors from numeric values. Those which where dichotomous or 
-# categorical variables and not appropriately continous, I converted using as.factor. 
+# categorical variables and not appropriately continous, I converted using as.factor. I also made those with value = 9 for frace = NA, which is what was indicated in the data dictionary
 
 # Checking for missing data,
 # There is no missing data in the data frame when checking each of the columns with the code below: 
 
 # sum(is.na(bw$bwt))
 ```
+
+*Below are some exploratory plots/analysis I will use to help select my model*
 
 ```{r Exploratory Plots/Analysis for Model}
 #Exploratory plots to see distribution of birthweight
@@ -185,6 +187,9 @@ Propose a regression model for birthweight. This model may be based on a hypothe
 eric_model = 
   bw %>% 
   lm(bwt ~ babysex + frace + mrace + delwt + gaweeks + wtgain + smoken, data = .)
+
+lin_mod_babies <- lm(bwt ~ gaweeks + bhead + babysex + mrace + ppbmi + smoken + wtgain, data = babies)
+
 
 bw %>% 
   add_predictions(eric_model) %>% 
