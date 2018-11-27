@@ -71,6 +71,7 @@ wp_homicide_data %>%
   geom_point(color = "firebrick") + 
   geom_errorbar(aes(ymin = OR_Lower_Bound, ymax = OR_Upper_Bound)) +
   coord_flip() + 
+  geom_hline(yintercept = 1, linetype = "dashed", color = "red", alpha = 0.5) +
   labs(title = "Adjusted Odds Ratios for Solving Homicides Comparing \n Non-White Victims to White Victims by City", 
        y = "Adjusted Odds Ratio", 
        x = "City, State", 
@@ -91,11 +92,10 @@ Overall, we see that cities with a large amount of homicides (Baltimore, Chicago
 Problem 2
 ---------
 
-Load and clean the data for regression analysis (i.e. convert numeric to factor where appropriate, check for missing data, etc.).
-
 ``` r
 bw = read_csv("data/birthweight.csv") %>% 
-  mutate(babysex = as.factor(babysex),
+  mutate(frace = ifelse(frace == "9", NA, frace),
+         babysex = as.factor(babysex),
          frace = as.factor(frace), 
          malform = as.factor(malform), 
          mrace = as.factor(mrace))
@@ -113,7 +113,7 @@ bw = read_csv("data/birthweight.csv") %>%
 
 ``` r
 # After importing the data, I checked which columns seemed appropriate to be converted to factors from numeric values. Those which where dichotomous or 
-# categorical variables and not appropriately continous, I converted using as.factor. 
+# categorical variables and not appropriately continous, I converted using as.factor. I also made those with value = 9 for frace = NA, which is what was indicated in the data dictionary
 
 # Checking for missing data,
 # There is no missing data in the data frame when checking each of the columns with the code below: 
@@ -121,141 +121,116 @@ bw = read_csv("data/birthweight.csv") %>%
 # sum(is.na(bw$bwt))
 ```
 
+*Below are some exploratory plots/analysis I will use to help select my model*
+
 ``` r
-#Exploratory plots to see distribution of birthweight
+#Exploratory plots to see distribution of birthweight -
 
 # No x to plot against, tried this scatter but not much info: bw %>% ggplot(aes(x = 1:nrow(bw), y = bwt)) + geom_point() + theme_bw()
 
-bw %>% 
+bwhisto =
+  bw %>% 
   ggplot(aes(x = bwt)) +
   geom_histogram(bins = 50) + 
   theme_bw()
+
+bwbox =
+  bw %>% 
+  ggplot(aes(y = bwt)) + 
+  geom_boxplot() +
+  theme_bw()
+
+wrap_elements(bwhisto + bwbox)
 ```
 
 <img src="HW6_files/figure-markdown_github/Exploratory Plots/Analysis for Model-1.png" style="display: block; margin: auto;" />
 
 ``` r
-bw %>% 
-  ggplot(aes(y = bwt)) + 
+# Birthweight is probably fairly normally distributed, with a few outliers, and should be treated as a continous variable in an analysis 
+
+bwsex = 
+  bw %>% 
+  ggplot(aes(x = babysex, y = bwt)) + 
   geom_boxplot() +
   theme_bw()
+
+fracebw = 
+  bw %>% 
+  ggplot(aes(x = frace, y = bwt)) + 
+  geom_boxplot() +
+  theme_bw()
+
+mracebw = 
+  bw %>% 
+  ggplot(aes(x = mrace, y = bwt)) + 
+  geom_boxplot() +
+  theme_bw()
+
+wrap_elements(bwsex + fracebw + mracebw)
 ```
 
 <img src="HW6_files/figure-markdown_github/Exploratory Plots/Analysis for Model-2.png" style="display: block; margin: auto;" />
 
 ``` r
-# Birthweight is probably fairly normally distributed, with a few outliers, and should be treated as a continous variable in an analysis 
-
-bw %>% 
-  ggplot(aes(x = babysex, y = bwt)) + 
-  geom_boxplot() +
-  theme_bw()
-```
-
-<img src="HW6_files/figure-markdown_github/Exploratory Plots/Analysis for Model-3.png" style="display: block; margin: auto;" />
-
-``` r
-bw %>% 
-  ggplot(aes(x = frace, y = bwt)) + 
-  geom_boxplot() +
-  theme_bw()
-```
-
-<img src="HW6_files/figure-markdown_github/Exploratory Plots/Analysis for Model-4.png" style="display: block; margin: auto;" />
-
-``` r
-bw %>% 
-  ggplot(aes(x = mrace, y = bwt)) + 
-  geom_boxplot() +
-  theme_bw()
-```
-
-<img src="HW6_files/figure-markdown_github/Exploratory Plots/Analysis for Model-5.png" style="display: block; margin: auto;" />
-
-``` r
 # The boxplots for categorical variables tells us a little bit of info, mostly that birthweight varies across all the categories 
 
-# For checking the relationships with continuous variables, I'll run a function to determine the correlation coefficients 
+# For checking the relationships with continuous variables, I'll run a loop to determine the correlation coefficients 
 
-# Function for this??
+cor_cts_table =
+  bw %>% 
+  select_if(is.numeric) %>% 
+  select(-bwt,
+         -pnumlbw,
+         -pnumsga)
 
-cor(bw$bwt, bw$bhead)
+corr_values = list()
+
+for (i in 1:ncol(cor_cts_table)) {
+  corr_values[[i]] = cor(bw$bwt, cor_cts_table[i])
+  }
+
+as.data.frame(corr_values) %>% 
+  gather(key = var, value = correlation) %>% 
+  knitr::kable(digits = 3)
 ```
 
-    ## [1] 0.7471068
+| var      |  correlation|
+|:---------|------------:|
+| bhead    |        0.747|
+| blength  |        0.743|
+| delwt    |        0.288|
+| fincome  |        0.155|
+| gaweeks  |        0.412|
+| menarche |       -0.024|
+| mheight  |        0.192|
+| momage   |        0.136|
+| parity   |       -0.008|
+| ppbmi    |        0.094|
+| ppwt     |        0.183|
+| smoken   |       -0.076|
+| wtgain   |        0.247|
 
 ``` r
-cor(bw$bwt, bw$blength)
+# From above we see that bhead, blength, delwt, gaweeks and wtgain all have correlation values >0.2, which may indicate a positive linear relationship with birthweight. While this might not mean much, it'll help me include it in a model
+
+# Scatter plots for cts variables, viewing correlation 
+# bw %>% 
+#  ggplot(aes(x= smoken, y = bwt)) + 
+#  geom_point() +
+#  geom_smooth() + 
+#  theme_bw()
 ```
 
-    ## [1] 0.7434508
-
 ``` r
-cor(bw$bwt, bw$delwt)
-```
+# Using my above 'analysis' and some hypothesized factors that I think influence birthweight, my proposed model is below. 
 
-    ## [1] 0.2878893
+# I'm afraid of adding too many predictors. I was wary of adding the bhead and blength variables, as these are measurements taken post-birth and cannot be changed/influenced. However, I chose to include blength because it's clear that length (height) and weight have a relationship. 
 
-``` r
-cor(bw$bwt, bw$fincome)
-```
-
-    ## [1] 0.1545715
-
-``` r
-cor(bw$bwt, bw$gaweeks)
-```
-
-    ## [1] 0.4121833
-
-``` r
-cor(bw$bwt, bw$menarche)
-```
-
-    ## [1] -0.02442466
-
-``` r
-cor(bw$bwt, bw$mheight)
-```
-
-    ## [1] 0.1921632
-
-``` r
-cor(bw$bwt, bw$momage)
-```
-
-    ## [1] 0.1357734
-
-``` r
-cor(bw$bwt, bw$ppbmi)
-```
-
-    ## [1] 0.09394573
-
-``` r
-cor(bw$bwt, bw$ppwt)
-```
-
-    ## [1] 0.182892
-
-``` r
-cor(bw$bwt, bw$wtgain)
-```
-
-    ## [1] 0.2472526
-
-``` r
-# From above we see that bhead, blength, delwet, gaweeks and wtgain all have correlation values >0.2, which may indicate a positive linear relationship with birthweight. While this might not mean much, it'll help me include it in a model 
-```
-
-Propose a regression model for birthweight. This model may be based on a hypothesized structure for the factors that underly birthweight, on a data-driven model-building process, or a combination of the two. Describe your modeling process and show a plot of model residuals against fitted values – use add\_predictions and add\_residuals in making this plot.
-
-``` r
-# Using my above 'analysis' and some hypothesized factors that I think influence birthweight, my proposed model is below. I'm afraid of adding too many predictors, and wary of add bhead and blength variables, as these are measurements taken post-birth and cannot be changed/influence. Additionally I didn't add any interaction terms to keep it a simple linear model with multiple predictors. I chose to include both mother and father's race, mother's weight at delivery, gestational age, weight gained during pregnancy and the smoking variable. 
+# I chose not to include both mother and father's race as it had many levels and may complicate the interpretation. Additionally I didn't add any interaction terms to keep it a simple linear model with multiple predictors. I included the baby's sex, mother's weight at delivery (high correlation), gestational age (in weeks, high correlation and hypothesized fact), and the smoking variable (possible confounder). 
 
 eric_model = 
   bw %>% 
-  lm(bwt ~ babysex + frace + mrace + delwt + gaweeks + wtgain + smoken, data = .)
+  lm(bwt ~ babysex + blength + delwt + gaweeks + smoken, data = .)
 
 bw %>% 
   add_predictions(eric_model) %>% 
@@ -273,13 +248,13 @@ bw %>%
 
 <img src="HW6_files/figure-markdown_github/My Proposed Model-1.png" style="display: block; margin: auto;" />
 
-I'm not sure what my scatterplot of the predicted values vs. residuals tells me and I'm pretty sure my model stinks.
+When I plot my model's residuals against predicted value, there seems to be some clustering, but also a good amount of outliers. I'm not sure my model predicts birthweight well, but I'm sticking to it.
 
 ``` r
 cv_bwt = crossv_mc(bw, 100)
 
 cv_bwt = cv_bwt %>% 
-  mutate(my_model = map(train, ~lm(bwt ~ babysex + frace + mrace + delwt + gaweeks + wtgain + smoken, data = .x)),
+  mutate(my_model = map(train, ~lm(bwt ~ babysex + blength + delwt + gaweeks + smoken, data = .)),
          jeff_model_main = map(train, ~lm(bwt ~ blength + gaweeks, data = .x)),
          jeff_model_int = map(train, ~lm(bwt ~ bhead + blength + babysex + bhead*blength + blength*babysex + 
                                            bhead*babysex + bhead*blength*babysex, data = .x))) %>% 
@@ -295,7 +270,7 @@ cv_bwt %>%
   ggplot(aes(x = model, y = rmse)) + 
   geom_violin() +
   theme_bw() + 
-  labs(title = "Violin plots of select model's RMSE",
+  labs(title = "Violin plots of selected model's RMSE",
        x = "Model Title",
        y = "RMSE")
 ```
@@ -317,6 +292,8 @@ cv_bwt %>%
 
 | model      |  mean\_rmse|
 |:-----------|-----------:|
-| my         |    420.8317|
+| my         |    327.1560|
 | jeff\_main |    333.4554|
 | jeff\_int  |    290.1558|
+
+The above plot visualizes violin plots for the RMSE of my proposed model, Jeff's main effects model, and Jeff's interaction model. Based on these plots, I would choose Jeff's interaction model, though my give a slight edge to my model over the main effects model. Adding interaction terms would probably help my model, as well as eliminating predictors which to add much (probably messing up the adjusted r^2).

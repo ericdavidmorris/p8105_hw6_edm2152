@@ -11,6 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(modelr)
 library(purrr)
+library(patchwork)
 
 knitr::opts_chunk$set(
   fig.align = "center",
@@ -120,56 +121,68 @@ bw = read_csv("data/birthweight.csv") %>%
 *Below are some exploratory plots/analysis I will use to help select my model*
 
 ```{r Exploratory Plots/Analysis for Model}
-#Exploratory plots to see distribution of birthweight
+#Exploratory plots to see distribution of birthweight -
 
 # No x to plot against, tried this scatter but not much info: bw %>% ggplot(aes(x = 1:nrow(bw), y = bwt)) + geom_point() + theme_bw()
 
-bw %>% 
+bwhisto =
+  bw %>% 
   ggplot(aes(x = bwt)) +
   geom_histogram(bins = 50) + 
   theme_bw()
 
-bw %>% 
+bwbox =
+  bw %>% 
   ggplot(aes(y = bwt)) + 
   geom_boxplot() +
   theme_bw()
 
+wrap_elements(bwhisto + bwbox)
+
 # Birthweight is probably fairly normally distributed, with a few outliers, and should be treated as a continous variable in an analysis 
 
-bw %>% 
+bwsex = 
+  bw %>% 
   ggplot(aes(x = babysex, y = bwt)) + 
   geom_boxplot() +
   theme_bw()
 
-bw %>% 
+fracebw = 
+  bw %>% 
   ggplot(aes(x = frace, y = bwt)) + 
   geom_boxplot() +
   theme_bw()
 
-bw %>% 
+mracebw = 
+  bw %>% 
   ggplot(aes(x = mrace, y = bwt)) + 
   geom_boxplot() +
   theme_bw()
 
+wrap_elements(bwsex + fracebw + mracebw)
+
 # The boxplots for categorical variables tells us a little bit of info, mostly that birthweight varies across all the categories 
 
-# For checking the relationships with continuous variables, I'll run a function to determine the correlation coefficients 
+# For checking the relationships with continuous variables, I'll run a loop to determine the correlation coefficients 
 
-# Function for this??
+cor_cts_table =
+  bw %>% 
+  select_if(is.numeric) %>% 
+  select(-bwt,
+         -pnumlbw,
+         -pnumsga)
 
-cor(bw$bwt, bw$bhead)
-cor(bw$bwt, bw$blength)
-cor(bw$bwt, bw$delwt)
-cor(bw$bwt, bw$fincome)
-cor(bw$bwt, bw$gaweeks)
-cor(bw$bwt, bw$menarche)
-cor(bw$bwt, bw$mheight)
-cor(bw$bwt, bw$momage)
-cor(bw$bwt, bw$ppbmi)
-cor(bw$bwt, bw$ppwt)
-cor(bw$bwt, bw$wtgain)
+corr_values = list()
 
-# From above we see that bhead, blength, delwt, gaweeks and wtgain all have correlation values >0.2, which may indicate a positive linear relationship with birthweight. While this might not mean much, it'll help me include it in a model 
+for (i in 1:ncol(cor_cts_table)) {
+  corr_values[[i]] = cor(bw$bwt, cor_cts_table[i])
+  }
+
+as.data.frame(corr_values) %>% 
+  gather(key = var, value = correlation) %>% 
+  knitr::kable(digits = 3)
+
+# From above we see that bhead, blength, delwt, gaweeks and wtgain all have correlation values >0.2, which may indicate a positive linear relationship with birthweight. While this might not mean much, it'll help me include it in a model
 
 # Scatter plots for cts variables, viewing correlation 
 # bw %>% 
@@ -179,17 +192,17 @@ cor(bw$bwt, bw$wtgain)
 #  theme_bw()
 
 ```
-Propose a regression model for birthweight. This model may be based on a hypothesized structure for the factors that underly birthweight, on a data-driven model-building process, or a combination of the two. Describe your modeling process and show a plot of model residuals against fitted values – use add_predictions and add_residuals in making this plot.
 
 ```{r My Proposed Model}
-# Using my above 'analysis' and some hypothesized factors that I think influence birthweight, my proposed model is below. I'm afraid of adding too many predictors, and wary of add bhead and blength variables, as these are measurements taken post-birth and cannot be changed/influence. Additionally I didn't add any interaction terms to keep it a simple linear model with multiple predictors. I chose to include both mother and father's race, mother's weight at delivery, gestational age, weight gained during pregnancy and the smoking variable. 
+# Using my above 'analysis' and some hypothesized factors that I think influence birthweight, my proposed model is below. 
+
+# I'm afraid of adding too many predictors. I was wary of adding the bhead and blength variables, as these are measurements taken post-birth and cannot be changed/influenced. However, I chose to include blength because it's clear that length (height) and weight have a relationship. 
+
+# I chose not to include both mother and father's race as it had many levels and may complicate the interpretation. Additionally I didn't add any interaction terms to keep it a simple linear model with multiple predictors. I included the baby's sex, mother's weight at delivery (high correlation), gestational age (in weeks, high correlation and hypothesized fact), and the smoking variable (possible confounder). 
 
 eric_model = 
   bw %>% 
-  lm(bwt ~ babysex + frace + mrace + delwt + gaweeks + wtgain + smoken, data = .)
-
-lin_mod_babies <- lm(bwt ~ gaweeks + bhead + babysex + mrace + ppbmi + smoken + wtgain, data = babies)
-
+  lm(bwt ~ babysex + blength + delwt + gaweeks + smoken, data = .)
 
 bw %>% 
   add_predictions(eric_model) %>% 
@@ -204,14 +217,14 @@ bw %>%
 
 ```
 
-I'm not sure what my scatterplot of the predicted values vs. residuals tells me and I'm pretty sure my model stinks. 
+When I plot my model's residuals against predicted value, there seems to be some clustering, but also a good amount of outliers. I'm not sure my model predicts birthweight well, but I'm sticking to it. 
 
 ```{r Model Comparison and CV}
 
 cv_bwt = crossv_mc(bw, 100)
 
 cv_bwt = cv_bwt %>% 
-  mutate(my_model = map(train, ~lm(bwt ~ babysex + frace + mrace + delwt + gaweeks + wtgain + smoken, data = .x)),
+  mutate(my_model = map(train, ~lm(bwt ~ babysex + blength + delwt + gaweeks + smoken, data = .)),
          jeff_model_main = map(train, ~lm(bwt ~ blength + gaweeks, data = .x)),
          jeff_model_int = map(train, ~lm(bwt ~ bhead + blength + babysex + bhead*blength + blength*babysex + 
                                            bhead*babysex + bhead*blength*babysex, data = .x))) %>% 
@@ -227,7 +240,7 @@ cv_bwt %>%
   ggplot(aes(x = model, y = rmse)) + 
   geom_violin() +
   theme_bw() + 
-  labs(title = "Violin plots of select model's RMSE",
+  labs(title = "Violin plots of selected model's RMSE",
        x = "Model Title",
        y = "RMSE")
 
@@ -243,3 +256,4 @@ cv_bwt %>%
   knitr::kable()
 ```
 
+The above plot visualizes violin plots for the RMSE of my proposed model, Jeff's main effects model, and Jeff's interaction model. Based on these plots, I would choose Jeff's interaction model, though my give a slight edge to my model over the main effects model. Adding interaction terms would probably help my model, as well as eliminating predictors which to add much (probably messing up the adjusted r^2).  
